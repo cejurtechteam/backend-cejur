@@ -30,3 +30,21 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ error: "Erro ao buscar artigo" });
   }
 });
+
+// POST add article
+
+router.post("/", async (req, res) => {
+  try {
+    const newArticle = {
+      ...req.body,
+      date: new Date(),
+    };
+
+    const docRef = await db.collection("articles").add(newArticle);
+
+    res.status(201).json({ id: docRef.id, ...newArticle });
+  } catch (err) {
+    console.error("Erro ao adicionar artigo:", err);
+    res.status(500).json({ error: "Erro ao adicionar artigo" });
+  }
+});
