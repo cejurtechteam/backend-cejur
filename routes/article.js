@@ -60,3 +60,17 @@ router.put("/:id", async (req, res) => {
     res.status(500).json({ error: "Erro ao atualizar artigo." });
   }
 });
+
+// DELETE delete article
+
+router.delete("/:id", async (req, res) => {
+  try {
+    await db.collection("articles").doc(req.params.id).delete();
+    res.json({ message: "Artigo excluído com sucesso." });
+  } catch (err) {
+    console.error("Erro ao excluir artigo:", err);
+    res.status(500).json({ error: "Erro ao excluir artigo." });
+  }
+});
+
+module.exports = router;
