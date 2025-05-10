@@ -48,3 +48,15 @@ router.post("/", async (req, res) => {
     res.status(500).json({ error: "Erro ao adicionar artigo" });
   }
 });
+
+// PUT edit article
+
+router.put("/:id", async (req, res) => {
+  try {
+    await db.collection("articles").doc(req.params.id).update(req.body);
+    res.json({ message: "Artigo atualizado com sucesso." });
+  } catch (err) {
+    console.error("Erro ao atualizar artigo:", err);
+    res.status(500).json({ error: "Erro ao atualizar artigo." });
+  }
+});
