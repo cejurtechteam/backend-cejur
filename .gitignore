@@ -1,3 +1,4 @@
 node_modules
 firebaseKey.json
 package-lock.json
+.env
