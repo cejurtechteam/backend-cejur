@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/firebase");
-const axios = require("axios");
 const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 const cloudinary = require("../config/cloudnary");
+const verifyToken = require("../middlewares/verifyToken");
 
 // GET all articles
 
@@ -49,7 +49,7 @@ const uploadToCloudinary = async (buffer) => {
 };
 
 // POST add article
-router.post("/", upload.single("image"), async (req, res) => {
+router.post("/", verifyToken, upload.single("image"), async (req, res) => {
   try {
     const imageUrl = req.file
       ? await uploadToCloudinary(req.file.buffer)
@@ -73,7 +73,7 @@ router.post("/", upload.single("image"), async (req, res) => {
 
 // PUT edit article
 
-router.put("/:id", upload.single("image"), async (req, res) => {
+router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
   try {
     let updatedData = {
       title: req.body.title,
@@ -100,7 +100,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 
 // DELETE delete article
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyToken, async (req, res) => {
   try {
     await db.collection("articles").doc(req.params.id).delete();
     res.json({ message: "Artigo excluído com sucesso." });
