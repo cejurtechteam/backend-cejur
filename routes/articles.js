@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/firebase");
+const axios = require("axios");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+const fs = require("fs");
+const FormData = require("form-data");
 
 // GET all articles
 
@@ -31,12 +36,40 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST add article
+// Upload image to imgur
+const uploadToImgur = async (imagePath) => {
+  const CLIENT_ID = process.env.IMGUR_CLIENT_ID;
+  const url = "https://api.imgur.com/3/upload";
 
-router.post("/", async (req, res) => {
+  const formData = new FormData();
+  formData.append("image", fs.createReadStream(imagePath));
+
   try {
+    const response = await axios.post(url, formData, {
+      headers: {
+        Authorization: `Client-ID ${CLIENT_ID}`,
+        ...formData.getHeaders(),
+      },
+    });
+    return response.data.data.link;
+  } catch (err) {
+    console.error(
+      "Erro ao fazer upload para o Imgur:",
+      err.response?.data || err.message
+    );
+    throw new Error("Erro ao fazer upload para o Imgur");
+  }
+};
+
+// POST add article
+router.post("/", upload.single("image"), async (req, res) => {
+  try {
+    const imageUrl = req.file ? await uploadToImgur(req.file.path) : null;
+
     const newArticle = {
       ...req.body,
+      content: JSON.parse(req.body.content), // Isso transforma a string em array
+      image: imageUrl,
       date: new Date(),
     };
 
@@ -47,17 +80,44 @@ router.post("/", async (req, res) => {
     console.error("Erro ao adicionar artigo:", err);
     res.status(500).json({ error: "Erro ao adicionar artigo" });
   }
+
+  if (req.file) {
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.error("Erro ao remover arquivo temporário:", err);
+    });
+  }
 });
 
 // PUT edit article
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", upload.single("image"), async (req, res) => {
   try {
-    await db.collection("articles").doc(req.params.id).update(req.body);
+    let updatedData = {
+      title: req.body.title,
+      category: req.body.category,
+      author: req.body.author,
+      description: req.body.description,
+      content: JSON.parse(req.body.content),
+      date: new Date(),
+    };
+
+    if (req.file) {
+      const imageUrl = await uploadToImgur(req.file.path);
+      updatedData.image = imageUrl;
+    }
+
+    await db.collection("articles").doc(req.params.id).update(updatedData);
+
     res.json({ message: "Artigo atualizado com sucesso." });
   } catch (err) {
     console.error("Erro ao atualizar artigo:", err);
     res.status(500).json({ error: "Erro ao atualizar artigo." });
+  }
+
+  if (req.file) {
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.error("Erro ao remover arquivo temporário:", err);
+    });
   }
 });
 
