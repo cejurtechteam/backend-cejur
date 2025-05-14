@@ -5,8 +5,7 @@ const axios = require("axios");
 const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
-const fs = require("fs");
-const FormData = require("form-data");
+const cloudinary = require("../config/cloudnary");
 
 // GET all articles
 
@@ -37,39 +36,28 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Upload image to imgur
-const uploadToImgur = async (buffer) => {
-  const CLIENT_ID = process.env.IMGUR_CLIENT_ID;
-  const url = "https://api.imgur.com/3/image";
-
-  try {
-    const response = await axios.post(
-      url,
-      { image: buffer.toString("base64") },
-      {
-        headers: {
-          Authorization: `Client-ID ${CLIENT_ID}`,
-        },
-      }
-    );
-    return response.data.data.link;
-  } catch (err) {
-    console.error(
-      "Erro ao fazer upload para o Imgur:",
-      err.response?.data || err.message
-    );
-    throw new Error("Erro ao fazer upload para o Imgur");
-  }
+// Upload image to Cloudinary
+const uploadToCloudinary = async (buffer) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream({ resource_type: "image" }, (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      })
+      .end(buffer);
+  });
 };
 
 // POST add article
 router.post("/", upload.single("image"), async (req, res) => {
   try {
-    const imageUrl = req.file ? await uploadToImgur(req.file.buffer) : null;
+    const imageUrl = req.file
+      ? await uploadToCloudinary(req.file.buffer)
+      : null;
 
     const newArticle = {
       ...req.body,
-      content: JSON.parse(req.body.content), 
+      content: JSON.parse(req.body.content),
       image: imageUrl,
       date: new Date(),
     };
@@ -97,7 +85,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     };
 
     if (req.file) {
-      const imageUrl = await uploadToImgur(req.file.buffer);
+      const imageUrl = await uploadToCloudinary(req.file.buffer);
       updatedData.image = imageUrl;
     }
 
